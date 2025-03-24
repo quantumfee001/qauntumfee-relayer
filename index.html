@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>QuantumFee Wallet</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+</head>
+<body>
+  <h1>QuantumFee Wallet</h1>
+  <button id="connectButton" onclick="connectMetaMask()">Connect MetaMask</button>
+  <br><br>
+  <input id="amount" placeholder="QFT Amount (e.g., 1)" style="width: 300px;">
+  <br><br>
+  <button id="approveButton" onclick="approveQFT()" disabled>Approve QFT</button>
+  <br><br>
+  <button id="payButton" onclick="payGasFee()" disabled>Pay Gas Fee</button>
+  <p id="status">Status: Not connected</p>
+
+  <script>
+    let provider, signer;
+
+    async function connectMetaMask() {
+      try {
+        if (!window.ethereum) {
+          alert('Please install MetaMask!');
+          return;
+        }
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+        signer = provider.getSigner();
+        const address = await signer.getAddress();
+        document.getElementById('status').innerText = `Status: Connected as ${address}`;
+        document.getElementById('connectButton').disabled = true;
+        document.getElementById('approveButton').disabled = false;
+        console.log('MetaMask connected:', address);
+      } catch (error) {
+        console.error('Connection error:', error);
+        alert('Error connecting MetaMask: ' + error.message);
+      }
+    }
+
+    async function approveQFT() {
+      try {
+        if (!signer) {
+          alert('Please connect MetaMask first!');
+          return;
+        }
+        const feeManagerAddress = '0x915A4506639188E63942bb44c3DedD8EB3e17687';
+        const qftTokenAddress = '0xEB18Cd14C67082C856E5EC3e5faB99c66F05Ec03';
+
+        const qftAbi = ['function approve(address spender, uint256 amount) public returns (bool)'];
+        const qftContract = new ethers.Contract(qftTokenAddress, qftAbi, signer);
+        const amount = ethers.utils.parseEther(document.getElementById('amount').value || '1');
+        const tx = await qftContract.approve(feeManagerAddress, amount);
+        await tx.wait();
+        console.log('QFT approved');
+        alert('QFT approved successfully!');
+        document.getElementById('approveButton').disabled = true;
+        document.getElementById('payButton').disabled = false;
+      } catch (error) {
+        console.error('Approval error:', error);
+        alert('Error approving QFT: ' + error.message);
+      }
+    }
+
+    async function payGasFee() {
+      try {
+        if (!signer) {
+          alert('Please connect MetaMask first!');
+          return;
+        }
+        console.log('Starting gas fee payment');
+
+        const feeManagerAddress = '0x915A4506639188E63942bb44c3DedD8EB3e17687';
+        const amount = ethers.utils.parseEther(document.getElementById('amount').value || '1');
+
+        const feeManagerAbi = ['function payGasFee(uint256 amount) external'];
+        const feeManagerContract = new ethers.Contract(feeManagerAddress, feeManagerAbi, signer);
+        const tx = await feeManagerContract.payGasFee(amount);
+        console.log('Transaction sent:', tx.hash);
+        await tx.wait();
+        console.log('Gas fee paid');
+        alert(`Gas fee paid successfully: ${tx.hash}`);
+      } catch (error) {
+        console.error('Payment error:', error);
+        alert('Error paying gas fee: ' + error.message);
+      }
+    }
+  </script>
+</body>
+</html>
